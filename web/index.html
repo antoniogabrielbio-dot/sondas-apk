@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,69 +19,86 @@
     <!-- MAPA LEAFLET 100% IMERSIVO -->
     <div id="map"></div>
 
-    <!-- PAINEL FLUTUANTE SUPERIOR LIMPO (GLASSMORPHISM) -->
-    <div id="floating-header">
-      <!-- Barra de Identificação e Ações -->
-      <div class="nav-bar-pill">
-        <div class="brand">
+    <!-- BARRA DE BUSCA E CONTROLES SUPERIOR TÁTICA (SLIM CAPSULE) -->
+    <header id="floating-header" class="top-capsule-container">
+      <div class="top-search-capsule">
+        <!-- Logo / Marca & Indicador de Rede -->
+        <div class="capsule-brand" title="Sondas 2.0 - Resgate UFOPA">
           <span class="brand-icon">🎈</span>
-          <span>Sondas 2.0</span>
+          <span class="brand-title">Sondas</span>
+          <div id="network-badge" class="net-status-dot net-online" title="Conexão Online"></div>
         </div>
 
-        <div class="header-actions">
-          <div id="network-badge" class="net-status net-online">
-            <span class="net-dot"></span> Online
-          </div>
+        <!-- Input de Busca -->
+        <div class="capsule-input-box">
+          <input type="text" id="search-input" placeholder="🔍 Buscar sonda (ex: X2142)..." autocomplete="off" spellcheck="false">
+          <button id="btn-clear-search" class="btn-clear-input" title="Limpar busca">✕</button>
+        </div>
 
-          <button id="btn-mudar-camada" class="btn btn-secondary btn-sm" title="Mudar Estilo do Mapa (Satélite / Relevo / Ruas)" style="background: rgba(255,255,255,0.08); font-weight:600;">
-            🛰️ Camadas
+        <!-- Ações Direitas da Cápsula -->
+        <div class="capsule-actions">
+          <button id="btn-toggle-filters" class="capsule-btn-filter" title="Mostrar/Ocultar Filtros">
+            <span>🎯</span>
+            <span class="btn-filter-text">Filtros</span>
+            <span id="toggle-arrow">▾</span>
           </button>
 
-          <button id="btn-abrir-offline" class="btn btn-secondary btn-sm" title="Gerenciar Mapa Offline">
-            💾 Offline
-          </button>
-
-          <button id="btn-hunter-gps" class="btn btn-secondary btn-sm" title="Ativar GPS do Caçador">
-            🧭 GPS
-          </button>
-
-          <button id="btn-abrir-apk" class="btn btn-primary btn-sm" title="Baixar Aplicativo Android Nativo (APK)" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(16,185,129,0.4);">
-            📲 APK
+          <button id="btn-abrir-apk" class="capsule-btn-apk web-only" title="Baixar Aplicativo Android (APK)">
+            <span>📲</span>
+            <span class="btn-apk-text">APK</span>
           </button>
         </div>
       </div>
 
-      <!-- Barra de Busca Compacta com Botão de Recolher Filtros -->
-      <div class="search-row">
-        <input type="text" id="search-input" placeholder="🔍 Buscar código (ex: X2142, V501)..." autocomplete="off">
-        <button id="btn-clear-search" style="background:none; border:none; color:#94a3b8; padding:0 8px; cursor:pointer;">✕</button>
-        <button id="btn-toggle-filters" class="btn-toggle-filters" title="Mostrar/Ocultar Filtros">
-          <span>Filtros</span> <span id="toggle-arrow">▾</span>
-        </button>
-      </div>
-
-      <!-- Linha de Badges de Filtro (Recolhível com 1 toque) -->
-      <div id="filter-badges-row" class="filter-badges-container">
-        <div class="badge badge-busca active" data-status="busca">
+      <!-- CARROSSEL HORIZONTAL DE FILTROS (1 TOQUE PARA NAVEGAR) -->
+      <div id="filter-badges-row" class="filter-badges-container filter-chips-track">
+        <div class="badge chip badge-busca active" data-status="busca">
           🎯 Pendentes + Reciosas (<span id="badge-busca-count">0</span>)
         </div>
-        <div class="badge badge-pendente" data-status="Pendente">
+        <div class="badge chip badge-pendente" data-status="Pendente">
           🔴 Pendentes (<span id="badge-pendente-count">0</span>)
         </div>
-        <div class="badge badge-recioso" data-status="Recioso">
+        <div class="badge chip badge-recioso" data-status="Recioso">
           🟡 Reciosas (<span id="badge-recioso-count">0</span>)
         </div>
-        <div class="badge badge-coletada" data-status="Coletada">
+        <div class="badge chip badge-coletada" data-status="Coletada">
           🟢 Coletadas (<span id="badge-coletada-count">0</span>)
         </div>
-        <div class="badge badge-perdida" data-status="Inviável/Perdida">
+        <div class="badge chip badge-perdida" data-status="Inviável/Perdida">
           ⚫ Inviáveis (<span id="badge-perdida-count">0</span>)
         </div>
-        <div class="badge" data-status="todos">
+        <div class="badge chip badge-todos" data-status="todos">
           🌐 Todas (<span id="badge-total-count">0</span>)
         </div>
       </div>
-    </div>
+    </header>
+
+    <!-- COLUNA VERTICAL TÁTICA DE BOTÕES FLUTUANTES (FABs - LADO DIREITO) -->
+    <aside class="tactical-fab-column">
+      <!-- 1. Mudar Camada (Satélite / Relevo / Ruas) -->
+      <button id="btn-mudar-camada" class="tactical-fab" title="Estilo do Mapa (Satélite, Relevo 3D, Ruas)" aria-label="Mudar Camada">
+        <span class="fab-icon" id="fab-camada-icon">🛰️</span>
+        <span class="fab-label">Camadas</span>
+      </button>
+
+      <!-- 2. GPS do Caçador em Tempo Real -->
+      <button id="btn-hunter-gps" class="tactical-fab" title="Ativar GPS e Radar de Caçada" aria-label="GPS Caçador">
+        <span class="fab-icon" id="fab-gps-icon">🧭</span>
+        <span class="fab-label">GPS</span>
+      </button>
+
+      <!-- 3. Gerenciar Mapa Offline -->
+      <button id="btn-abrir-offline" class="tactical-fab" title="Armazenamento Offline (IndexedDB)" aria-label="Mapa Offline">
+        <span class="fab-icon">💾</span>
+        <span class="fab-label">Offline</span>
+      </button>
+
+      <!-- 4. Recentralizar em Santarém / UFOPA -->
+      <button id="btn-recentralizar" class="tactical-fab" title="Recentralizar Mapa (Santarém / UFOPA)" aria-label="Recentralizar">
+        <span class="fab-icon">🎯</span>
+        <span class="fab-label">Foco</span>
+      </button>
+    </aside>
 
     <!-- HUD DO CAÇADOR (MODO RADAR EM TEMPO REAL) -->
     <div id="hunter-hud">
@@ -99,12 +116,13 @@
 
     <!-- GAVETA INFERIOR DE DETALHES DA SONDA (SLIDE-UP DRAWER) -->
     <div id="sonde-drawer">
+      <div class="drawer-handle-bar"><span class="drawer-handle"></span></div>
       <div class="drawer-header">
         <div class="drawer-title">
           <span id="drawer-codigo">X0000000</span>
           <span id="drawer-status-badge" class="badge">Pendente</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="fecharGaveta()">✕</button>
+        <button class="btn-drawer-close" onclick="fecharGaveta()" aria-label="Fechar gaveta">✕</button>
       </div>
 
       <div class="drawer-body">

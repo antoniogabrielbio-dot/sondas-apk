@@ -57,6 +57,19 @@ body, html {
   z-index: 1;
 }
 
+/* Otimização de Nitidez HD e Interpolação para Tiles */
+.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+  transform: translateZ(0) !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  filter: contrast(106%) saturate(108%) brightness(101%) !important;
+}
+.leaflet-tile-container img {
+  image-rendering: -webkit-optimize-contrast !important;
+}
+
 /* Controles do Leaflet em Modo Escuro / Vidro */
 .leaflet-bar {
   border: 1px solid var(--border-glass) !important;
@@ -83,137 +96,195 @@ body, html {
 }
 
 /* =========================================================
-   2. NAVBAR FLUTUANTE ULTRA-COMPACTA (GLASSMORPHISM)
+   2. NAVBAR SUPERIOR SLIM TÁTICA (GLASSMORPHISM)
    ========================================================= */
-#floating-header {
+#floating-header.top-capsule-container {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  max-width: 580px;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  right: max(10px, env(safe-area-inset-right));
+  max-width: 600px;
   margin: 0 auto;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   pointer-events: none;
 }
-#floating-header > * {
+#floating-header.top-capsule-container > * {
   pointer-events: auto;
 }
 
-.nav-bar-pill {
+.top-search-capsule {
   height: 48px;
   background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  box-shadow: var(--shadow-lg);
-}
-
-.brand {
+  border-radius: 24px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.3px;
+  padding: 0 8px 0 12px;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255,255,255,0.2);
 }
 
-.brand-icon {
+.capsule-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: default;
+}
+.capsule-brand .brand-icon {
   font-size: 1.25rem;
+  line-height: 1;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
 }
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* =========================================================
-   3. BARRA DE BUSCA E FILTROS RECOLHÍVEIS
-   ========================================================= */
-.search-row {
-  display: flex;
-  gap: 6px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  padding: 4px 6px 4px 12px;
-  box-shadow: var(--shadow-lg);
-  align-items: center;
-}
-
-.search-row input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 0.9rem;
-  outline: none;
-}
-
-.search-row input::placeholder {
-  color: var(--text-muted);
-}
-
-.btn-toggle-filters {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.capsule-brand .brand-title {
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: -0.2px;
   color: var(--text-main);
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
+}
+.net-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+.net-status-dot.net-online {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+.net-status-dot.net-offline {
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+/* Input de busca */
+.capsule-input-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.capsule-input-box input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 0.88rem;
+  outline: none;
+  padding-right: 22px;
+  font-weight: 500;
+}
+.capsule-input-box input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+.btn-clear-input {
+  position: absolute;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
   cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  display: none;
+}
+.btn-clear-input:hover {
+  color: #fff;
+}
+
+/* Ações da cápsula (Filtros e APK) */
+.capsule-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.capsule-btn-filter {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-main);
+  border-radius: 16px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 4px;
+  cursor: pointer;
   transition: all 0.2s ease;
+  user-select: none;
 }
-.btn-toggle-filters:hover {
-  background: rgba(255, 255, 255, 0.15);
+.capsule-btn-filter:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.capsule-btn-apk {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  border-radius: 16px;
+  padding: 6px 11px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.35);
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+.capsule-btn-apk:active {
+  transform: scale(0.95);
 }
 
-.filter-badges-container {
+/* =========================================================
+   3. CARROSSEL HORIZONTAL DE FILTROS (CHIPS)
+   ========================================================= */
+.filter-chips-track {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 2px 2px 4px 2px;
+  padding: 4px 2px 6px 2px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   transition: max-height 0.25s ease, opacity 0.25s ease;
 }
-.filter-badges-container::-webkit-scrollbar {
+.filter-chips-track::-webkit-scrollbar {
   display: none;
 }
-.filter-badges-container.collapsed {
+.filter-chips-track.collapsed {
   display: none;
 }
 
-.badge {
+.chip, .badge {
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 18px;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-main);
   white-space: nowrap;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   transition: all 0.15s ease;
+  user-select: none;
 }
 
-.badge.active {
+.chip.active, .badge.active {
   background-color: var(--accent);
   border-color: var(--accent);
   color: #0b0f19;
@@ -230,6 +301,74 @@ body, html {
 .badge-recioso.active { background: var(--status-recioso); border-color: var(--status-recioso); color: #000; }
 .badge-coletada.active { background: var(--status-coletada); border-color: var(--status-coletada); color: #fff; }
 .badge-perdida.active { background: var(--status-perdida); border-color: var(--status-perdida); color: #fff; }
+
+/* =========================================================
+   3.1. COLUNA VERTICAL TÁTICA DE BOTÕES FLUTUANTES (FABs)
+   ========================================================= */
+.tactical-fab-column {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  top: 110px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tactical-fab {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.15s ease, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+.tactical-fab:active {
+  transform: scale(0.92);
+}
+.tactical-fab:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tactical-fab.active, .tactical-fab.fab-active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.7);
+  animation: fab-pulse 1.8s infinite ease-in-out;
+}
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+  50% { box-shadow: 0 0 22px rgba(56, 189, 248, 0.9); }
+}
+
+.tactical-fab .fab-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  pointer-events: none;
+}
+.tactical-fab .fab-label {
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-top: 1px;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+.tactical-fab.active .fab-label {
+  color: #38bdf8;
+}
 
 /* =========================================================
    4. BOTÕES E COMPONENTES GERAIS
@@ -547,33 +686,65 @@ body, html {
   box-shadow: 0 -10px 40px rgba(0,0,0,0.7);
   transform: translateY(105%);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: 82vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
 }
 #sonde-drawer.open {
   transform: translateY(0);
 }
+.drawer-handle-bar {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 0 2px 0;
+  cursor: pointer;
+}
+.drawer-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.28);
+}
 .drawer-header {
-  padding: 12px 18px;
+  padding: 8px 18px 12px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .drawer-title {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+.btn-drawer-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.btn-drawer-close:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 .drawer-body {
-  padding: 16px 18px 24px 18px;
+  padding: 14px 18px max(24px, env(safe-area-inset-bottom)) 18px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  -webkit-overflow-scrolling: touch;
 }
 .stat-grid {
   display: grid;
@@ -582,7 +753,7 @@ body, html {
 }
 .stat-card {
   background: rgba(255,255,255,0.04);
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.06);
 }
@@ -591,9 +762,10 @@ body, html {
   font-size: 0.68rem;
   color: var(--text-muted);
   text-transform: uppercase;
+  margin-bottom: 2px;
 }
 .stat-card span {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
 }
 .drawer-actions {
@@ -617,7 +789,7 @@ body, html {
 .status-buttons {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  gap: 6px;
 }
 
 /* =========================================================
@@ -762,3 +934,83 @@ body, html {
   color: var(--text-muted);
   line-height: 1.3;
 }
+
+/* =========================================================
+   9. CONTROLES LEAFLET & MODO NATIVO
+   ========================================================= */
+.leaflet-bottom.leaflet-left {
+  bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  left: max(12px, env(safe-area-inset-left)) !important;
+}
+.leaflet-bar {
+  border: 1px solid var(--border-glass) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.leaflet-bar a {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+  backdrop-filter: blur(12px) !important;
+  color: #fff !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 16px !important;
+}
+
+/* Oculta botões de download de APK quando estiver no app nativo */
+body.is-native-app .web-only {
+  display: none !important;
+}
+body.is-native-app #mobile-apk-banner {
+  display: none !important;
+}
+
+/* =========================================================
+   10. RESPONSIVIDADE MOBILE (SMARTPHONES < 540px)
+   ========================================================= */
+@media (max-width: 540px) {
+  .top-search-capsule {
+    height: 44px;
+    padding: 0 6px 0 10px;
+    gap: 6px;
+  }
+  .capsule-brand .brand-title {
+    font-size: 0.86rem;
+  }
+  .capsule-input-box input {
+    font-size: 0.84rem;
+  }
+  .tactical-fab-column {
+    top: 96px;
+    right: max(10px, env(safe-area-inset-right));
+    gap: 8px;
+  }
+  .tactical-fab {
+    width: 44px;
+    height: 44px;
+  }
+  .tactical-fab .fab-icon {
+    font-size: 1.15rem;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Em telas estreitas (360px), oculta textos extras para maximizar campo de busca */
+  .capsule-brand .brand-title {
+    display: none;
+  }
+  .capsule-btn-filter .btn-filter-text {
+    display: none;
+  }
+  .capsule-btn-apk .btn-apk-text {
+    display: none;
+  }
+  .capsule-btn-filter {
+    padding: 6px 8px;
+  }
+  .capsule-btn-apk {
+    padding: 6px 9px;
+  }
+}
+

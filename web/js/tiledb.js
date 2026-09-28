@@ -102,11 +102,12 @@ const TileDB = {
           pImg.onload = () => {
             try {
               const canvas = document.createElement('canvas');
-              canvas.width = 256;
-              canvas.height = 256;
+              // Canvas 512x512 para suavização bicúbica de alta fidelidade
+              canvas.width = 512;
+              canvas.height = 512;
               const ctx = canvas.getContext('2d');
 
-              // Ativa suavização bicúbica para zoom ficar bonito
+              // Ativa suavização bicúbica para zoom de alta definição
               ctx.imageSmoothingEnabled = true;
               ctx.imageSmoothingQuality = 'high';
 
@@ -114,9 +115,9 @@ const TileDB = {
               const sx = (coords.x % fator) * subSize;
               const sy = (coords.y % fator) * subSize;
 
-              // Desenha a sub-região do pai esticada em 256x256
-              ctx.drawImage(pImg, sx, sy, subSize, subSize, 0, 0, 256, 256);
-              resolve(canvas.toDataURL('image/jpeg', 0.85));
+              // Desenha a sub-região do pai interpolada em 512x512
+              ctx.drawImage(pImg, sx, sy, subSize, subSize, 0, 0, 512, 512);
+              resolve(canvas.toDataURL('image/jpeg', 0.93));
             } catch (err) {
               resolve(null);
             }

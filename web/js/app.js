@@ -287,8 +287,8 @@ const LocalOfflineTileLayer = L.TileLayer.extend({
 });
 
 function criarCamadasMapas() {
-  const opcoesBlindadas = {
-    maxNativeZoom: 16,
+  const opcoesHD = {
+    maxNativeZoom: 20, // Google possui fotos aéreas reais até zoom 20 na região!
     maxZoom: 22,
     keepBuffer: 100,
     updateWhenZooming: false,
@@ -296,28 +296,32 @@ function criarCamadasMapas() {
   };
 
   camadasDisponiveis = {
-    // 1. Google Satélite Híbrido (com nomes de estradas, rios e ramais)
+    // 1. Google Satélite Híbrido (fotos aéreas HD nativas com nomes de estradas e rios)
     satelite: new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
       subdomains: ['0', '1', '2', '3'],
       tipo: 'satelite',
-      ...opcoesBlindadas
+      ...opcoesHD
     }),
     // 2. Google Relevo / Topografia (curvas de nível e relevo sombreado 3D da mata)
     relevo: new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
       subdomains: ['0', '1', '2', '3'],
       tipo: 'relevo',
-      ...opcoesBlindadas
+      maxNativeZoom: 18,
+      maxZoom: 22,
+      keepBuffer: 100
     }),
-    // 3. OpenStreetMap (Ruas, cidades e vicinais)
+    // 3. OpenStreetMap (Ruas, cidades e vicinais em alta resolução)
     ruas: new LocalOfflineTileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       tipo: 'ruas',
-      ...opcoesBlindadas
+      maxNativeZoom: 19,
+      maxZoom: 22,
+      keepBuffer: 100
     }),
     // 4. Google Satélite Puro (sem rótulos para ver copas das árvores e clareiras)
     satelite_puro: new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
       subdomains: ['0', '1', '2', '3'],
       tipo: 'satelite_puro',
-      ...opcoesBlindadas
+      ...opcoesHD
     })
   };
 }
@@ -345,13 +349,11 @@ function mudarEstiloMapa(chave) {
     card.classList.toggle('active', card.getAttribute('data-layer') === chave);
   });
 
-  // Atualiza o texto do botão do cabeçalho
-  const btn = document.getElementById('btn-mudar-camada');
-  if (btn) {
-    if (chave === 'satelite') btn.innerHTML = '🛰️ Satélite';
-    else if (chave === 'relevo') btn.innerHTML = '🏔️ Relevo';
-    else if (chave === 'ruas') btn.innerHTML = '🗺️ Ruas';
-    else if (chave === 'satelite_puro') btn.innerHTML = '📷 Sat. Puro';
+  // Atualiza o ícone do botão FAB de camadas
+  const fabIcon = document.getElementById('fab-camada-icon');
+  const icones = { satelite: '🛰️', relevo: '🏔️', ruas: '🗺️', satelite_puro: '📷' };
+  if (fabIcon && icones[chave]) {
+    fabIcon.innerText = icones[chave];
   }
 }
 
@@ -365,7 +367,13 @@ function initMap() {
     maxZoom: 22
   }).setView(defaultCenter, defaultZoom);
 
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  // Zoom no canto inferior esquerdo (para não conflitar com a coluna tática FAB na direita)
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+  // Fecha gaveta inferior ao tocar em qualquer área livre do mapa
+  map.on('click', () => {
+    fecharGaveta();
+  });
 
   criarCamadasMapas();
 
@@ -611,6 +619,7 @@ async function alterarStatus(novoStatus) {
 // =========================================================
 function toggleHunterGPS() {
   const btn = document.getElementById('btn-hunter-gps');
+  const icon = document.getElementById('fab-gps-icon');
 
   if (hunterWatchId !== null) {
     // Desliga GPS
@@ -623,9 +632,11 @@ function toggleHunterGPS() {
     hunterAccuracyCircle = null;
     huntTrackingLine = null;
     document.getElementById('hunter-hud').style.display = 'none';
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-secondary');
-    btn.innerText = '🧭 Minha Posição';
+    if (btn) {
+      btn.classList.remove('active', 'fab-active');
+      btn.title = 'Ativar GPS e Radar de Caçada';
+    }
+    if (icon) icon.innerText = '🧭';
     return;
   }
 
@@ -634,9 +645,11 @@ function toggleHunterGPS() {
     return;
   }
 
-  btn.classList.remove('btn-secondary');
-  btn.classList.add('btn-primary');
-  btn.innerText = '🛰️ GPS Ativo';
+  if (btn) {
+    btn.classList.add('active', 'fab-active');
+    btn.title = 'GPS Ativo (Toque para desligar)';
+  }
+  if (icon) icon.innerText = '🛰️';
 
   hunterWatchId = navigator.geolocation.watchPosition(
     (pos) => {
@@ -776,7 +789,7 @@ async function verTrajetoriaSonda() {
 // =========================================================
 function initEventListeners() {
   // Filtros de status (Suporte a visualização simultânea e individual)
-  const badges = document.querySelectorAll('.filter-badges .badge');
+  const badges = document.querySelectorAll('#filter-badges-row .badge, #filter-badges-row .chip');
 
   function atualizarVisualBadges() {
     badges.forEach(b => {
@@ -827,15 +840,25 @@ function initEventListeners() {
 
   atualizarVisualBadges();
 
-  // Busca rápida de código
+  // Busca rápida de código e botão de limpar busca
   const searchInput = document.getElementById('search-input');
+  const btnClearSearch = document.getElementById('btn-clear-search');
+
+  const atualizarVisibilidadeLimpar = () => {
+    if (btnClearSearch) {
+      btnClearSearch.style.display = searchInput && searchInput.value.trim() ? 'block' : 'none';
+    }
+  };
+
   searchInput?.addEventListener('input', () => {
+    atualizarVisibilidadeLimpar();
     renderizarMarcadores();
   });
 
-  document.getElementById('btn-clear-search')?.addEventListener('click', () => {
+  btnClearSearch?.addEventListener('click', () => {
     if (searchInput) {
       searchInput.value = '';
+      atualizarVisibilidadeLimpar();
       renderizarMarcadores();
       searchInput.focus();
     }
@@ -854,7 +877,24 @@ function initEventListeners() {
     }
   });
 
-  // Botão GPS Caçador
+  // Botão FAB Recentralizar Santarém / UFOPA / Caçador
+  document.getElementById('btn-recentralizar')?.addEventListener('click', () => {
+    if (hunterPosition && selectedSonda) {
+      const bounds = L.latLngBounds([
+        [hunterPosition.lat, hunterPosition.lon],
+        [selectedSonda.latitude, selectedSonda.longitude]
+      ]);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    } else if (hunterPosition) {
+      map.setView([hunterPosition.lat, hunterPosition.lon], 15, { animate: true });
+    } else if (selectedSonda) {
+      map.setView([selectedSonda.latitude, selectedSonda.longitude], 14, { animate: true });
+    } else {
+      map.setView([-2.445, -54.725], 11, { animate: true });
+    }
+  });
+
+  // Botão FAB GPS Caçador
   document.getElementById('btn-hunter-gps')?.addEventListener('click', toggleHunterGPS);
 
   // Copiar coordenadas
@@ -864,6 +904,11 @@ function initEventListeners() {
     navigator.clipboard.writeText(txt).then(() => {
       alert(`Coordenadas copiadas: ${txt}`);
     });
+  });
+
+  // Toque na alça da gaveta fecha a gaveta
+  document.querySelector('.drawer-handle-bar')?.addEventListener('click', () => {
+    fecharGaveta();
   });
 
   // Modal Offline
@@ -922,15 +967,21 @@ function initEventListeners() {
     });
   });
 
-  // Detecção de App Nativo Instalado (Capacitor / Android)
-  const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform()) ||
+  // Detecção Robusta de App Nativo Instalado (Capacitor / Android WebView)
+  const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ||
                       window.location.protocol === 'capacitor:' ||
-                      window.location.hostname === 'localhost';
+                      window.location.hostname === 'localhost' ||
+                      window.location.hostname === '127.0.0.1' ||
+                      navigator.userAgent.includes('wv') ||
+                      window.location.origin.includes('localhost');
 
-  // Se já estiver dentro do aplicativo instalado, oculta o botão e banner de download
+  // Se já estiver dentro do aplicativo instalado, marca a classe no body e oculta botões de download
   if (isNativeApp) {
+    document.body.classList.add('is-native-app');
     const btnApk = document.getElementById('btn-abrir-apk');
     if (btnApk) btnApk.style.display = 'none';
+    const mobileBanner = document.getElementById('mobile-apk-banner');
+    if (mobileBanner) mobileBanner.style.display = 'none';
   }
 
   // Modal App APK Android (Apenas para acesso via navegador web)

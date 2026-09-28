@@ -140,7 +140,6 @@ const OfflineManager = {
       tx.objectStore('tiles').clear();
     }
   }
-  }
 };
 
 window.OfflineManager = OfflineManager;

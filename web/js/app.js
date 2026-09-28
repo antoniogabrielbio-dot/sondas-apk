@@ -848,7 +848,18 @@ function initEventListeners() {
     });
   });
 
-  // Modal App APK Android
+  // Detecção de App Nativo Instalado (Capacitor / Android)
+  const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform()) ||
+                      window.location.protocol === 'capacitor:' ||
+                      window.location.hostname === 'localhost';
+
+  // Se já estiver dentro do aplicativo instalado, oculta o botão e banner de download
+  if (isNativeApp) {
+    const btnApk = document.getElementById('btn-abrir-apk');
+    if (btnApk) btnApk.style.display = 'none';
+  }
+
+  // Modal App APK Android (Apenas para acesso via navegador web)
   const modalApk = document.getElementById('modal-apk');
   document.getElementById('btn-abrir-apk')?.addEventListener('click', () => {
     modalApk?.classList.add('open');
@@ -863,10 +874,10 @@ function initEventListeners() {
     if (e.target === modalOffline) modalOffline.classList.remove('open');
   });
 
-  // Banner Flutuante para Celular
+  // Banner Flutuante para Celular (APENAS se estiver no navegador comum, nunca no app nativo!)
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const mobileBanner = document.getElementById('mobile-apk-banner');
-  if (isMobile && mobileBanner) {
+  if (isMobile && !isNativeApp && mobileBanner) {
     setTimeout(() => {
       mobileBanner.style.display = 'flex';
     }, 1500);

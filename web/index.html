@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sondas 2.0 - Mapa de Resgate</title>
+  
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./leaflet/leaflet.css">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+  <div id="app-container">
+    
+    <!-- MAPA LEAFLET 100% IMERSIVO -->
+    <div id="map"></div>
+
+    <!-- PAINEL FLUTUANTE SUPERIOR LIMPO (GLASSMORPHISM) -->
+    <div id="floating-header">
+      <!-- Barra de Identificação e Ações -->
+      <div class="nav-bar-pill">
+        <div class="brand">
+          <span class="brand-icon">🎈</span>
+          <span>Sondas 2.0</span>
+        </div>
+
+        <div class="header-actions">
+          <div id="network-badge" class="net-status net-online">
+            <span class="net-dot"></span> Online
+          </div>
+
+          <button id="btn-mudar-camada" class="btn btn-secondary btn-sm" title="Mudar Estilo do Mapa (Satélite / Relevo / Ruas)" style="background: rgba(255,255,255,0.08); font-weight:600;">
+            🛰️ Camadas
+          </button>
+
+          <button id="btn-abrir-offline" class="btn btn-secondary btn-sm" title="Gerenciar Mapa Offline">
+            💾 Offline
+          </button>
+
+          <button id="btn-hunter-gps" class="btn btn-secondary btn-sm" title="Ativar GPS do Caçador">
+            🧭 GPS
+          </button>
+
+          <button id="btn-abrir-apk" class="btn btn-primary btn-sm" title="Baixar Aplicativo Android Nativo (APK)" style="background: linear-gradient(135deg, #10b981, #059669); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(16,185,129,0.4);">
+            📲 APK
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Busca Compacta com Botão de Recolher Filtros -->
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder="🔍 Buscar código (ex: X2142, V501)..." autocomplete="off">
+        <button id="btn-clear-search" style="background:none; border:none; color:#94a3b8; padding:0 8px; cursor:pointer;">✕</button>
+        <button id="btn-toggle-filters" class="btn-toggle-filters" title="Mostrar/Ocultar Filtros">
+          <span>Filtros</span> <span id="toggle-arrow">▾</span>
+        </button>
+      </div>
+
+      <!-- Linha de Badges de Filtro (Recolhível com 1 toque) -->
+      <div id="filter-badges-row" class="filter-badges-container">
+        <div class="badge badge-busca active" data-status="busca">
+          🎯 Pendentes + Reciosas (<span id="badge-busca-count">0</span>)
+        </div>
+        <div class="badge badge-pendente" data-status="Pendente">
+          🔴 Pendentes (<span id="badge-pendente-count">0</span>)
+        </div>
+        <div class="badge badge-recioso" data-status="Recioso">
+          🟡 Reciosas (<span id="badge-recioso-count">0</span>)
+        </div>
+        <div class="badge badge-coletada" data-status="Coletada">
+          🟢 Coletadas (<span id="badge-coletada-count">0</span>)
+        </div>
+        <div class="badge badge-perdida" data-status="Inviável/Perdida">
+          ⚫ Inviáveis (<span id="badge-perdida-count">0</span>)
+        </div>
+        <div class="badge" data-status="todos">
+          🌐 Todas (<span id="badge-total-count">0</span>)
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD DO CAÇADOR (MODO RADAR EM TEMPO REAL) -->
+    <div id="hunter-hud">
+      <div class="hud-content">
+        <div class="hud-info">
+          <span id="hud-sonda-nome" class="hud-title">🎯 Alvo Selecionado</span>
+          <span id="hud-distancia" class="hud-dist">-- m</span>
+          <span id="hud-rumo" class="hud-bearing">Rumo: --°</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="abrirGavetaSonda(selectedSonda)">
+          Ver Detalhes
+        </button>
+      </div>
+    </div>
+
+    <!-- GAVETA INFERIOR DE DETALHES DA SONDA (SLIDE-UP DRAWER) -->
+    <div id="sonde-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <span id="drawer-codigo">X0000000</span>
+          <span id="drawer-status-badge" class="badge">Pendente</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="fecharGaveta()">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <label>Data de Queda</label>
+            <span id="stat-data">--</span>
+          </div>
+          <div class="stat-card">
+            <label>Altitude de Perda</label>
+            <span id="stat-altitude">-- m</span>
+          </div>
+          <div class="stat-card">
+            <label>Coordenadas (Lat, Lon)</label>
+            <span id="stat-coordenadas" style="font-size:0.85rem;">--</span>
+          </div>
+          <div class="stat-card">
+            <label>Vento / Queda</label>
+            <span id="stat-velocidades" style="font-size:0.85rem;">--</span>
+          </div>
+        </div>
+
+        <!-- AÇÕES PRINCIPAIS -->
+        <div class="drawer-actions">
+          <a id="btn-nav-maps" class="btn btn-primary" target="_blank" href="#">
+            📍 Google Maps
+          </a>
+          <a id="btn-nav-offline" class="btn btn-success" href="#">
+            🧭 GPS Offline
+          </a>
+        </div>
+
+        <div class="drawer-actions">
+          <button class="btn btn-warning" onclick="verTrajetoriaSonda()">
+            🎯 Trajetória / Queda
+          </button>
+          <button id="btn-copiar-coords" class="btn btn-secondary">
+            📋 Copiar Coord.
+          </button>
+        </div>
+
+        <!-- MUDANÇA RÁPIDA DE STATUS -->
+        <div class="status-change-group">
+          <label>Mudar Status da Sonda:</label>
+          <div class="status-buttons">
+            <button class="btn btn-danger btn-sm" onclick="alterarStatus('Pendente')">🔴 Pendente</button>
+            <button class="btn btn-warning btn-sm" onclick="alterarStatus('Recioso')">🟡 Recioso</button>
+            <button class="btn btn-success btn-sm" onclick="alterarStatus('Coletada')">🟢 Coletada</button>
+            <button class="btn btn-secondary btn-sm" onclick="alterarStatus('Inviável/Perdida')">⚫ Inviável</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL SELETOR DE ESTILO DO MAPA (SATÉLITE, RELEVO, RUAS) -->
+    <div id="modal-camadas" class="modal-overlay">
+      <div class="modal-box" style="max-width: 440px;">
+        <div class="modal-header">
+          <h3 style="display:flex; align-items:center; gap:8px;">
+            <span>🗺️</span> Estilo do Mapa
+          </h3>
+          <button id="btn-fechar-camadas" class="btn btn-secondary btn-sm">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:12px;">
+            Toque para alternar o mapa em tempo real no app:
+          </p>
+
+          <div class="layer-options-grid">
+            <!-- Opção 1: Satélite Híbrido -->
+            <div class="layer-option-card active" data-layer="satelite">
+              <div class="layer-icon">🛰️</div>
+              <div class="layer-info">
+                <b>Satélite Híbrido (Google)</b>
+                <span>Fotos aéreas de alta nitidez com nomes de ramais, estradas e rios</span>
+              </div>
+            </div>
+
+            <!-- Opção 2: Relevo / Topografia -->
+            <div class="layer-option-card" data-layer="relevo">
+              <div class="layer-icon">🏔️</div>
+              <div class="layer-info">
+                <b>Relevo & Topografia 3D</b>
+                <span>Curvas de nível, morros, serras, elevação e relevo sombreado da mata</span>
+              </div>
+            </div>
+
+            <!-- Opção 3: Ruas e Vicinais -->
+            <div class="layer-option-card" data-layer="ruas">
+              <div class="layer-icon">🗺️</div>
+              <div class="layer-info">
+                <b>Ruas e Vicinais (OpenStreetMap)</b>
+                <span>Traçado nítido de estradas de terra, rodovias e povoados</span>
+              </div>
+            </div>
+
+            <!-- Opção 4: Satélite Puro -->
+            <div class="layer-option-card" data-layer="satelite_puro">
+              <div class="layer-icon">📷</div>
+              <div class="layer-info">
+                <b>Satélite Puro (Sem Rótulos)</b>
+                <span>Visão limpa da densidade da vegetação, clareiras e copas</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blindagem Anti-Sumiço no Zoom -->
+          <div style="margin-top:14px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35); border-radius:10px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div>
+              <b style="color:#10b981; font-size:0.88rem; display:flex; align-items:center; gap:6px;">
+                <span>🛡️</span> Zoom Blindado Anti-Sumiço: ATIVO
+              </b>
+              <span style="color:#94a3b8; font-size:0.75rem; display:block; margin-top:2px;">
+                O mapa escala até zoom 22x sem apagar nem sumir quando você estiver offline na mata.
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE MAPA OFFLINE -->
+    <div id="modal-offline" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>💾 Armazenamento Offline do Mapa</h3>
+          <button id="btn-fechar-offline" class="btn btn-secondary btn-sm">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Baixe previamente os blocos de mapa da região de <b>Santarém, Belterra, Mojuí e entorno da UFOPA</b>.
+          </p>
+          <p style="margin-top:8px;">
+            Assim, quando você entrar na mata ou em estradas sem cobertura 4G/3G, o mapa continuará funcionando normalmente no celular sem sumir no zoom.
+          </p>
+
+          <div style="margin: 12px 0;">
+            <label style="font-size:0.82rem; color:#94a3b8; display:block; margin-bottom:4px;">Tipo de mapa para baixar:</label>
+            <select id="select-offline-map-type" style="width:100%; padding:8px 10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff; font-size:0.9rem;">
+              <option value="satelite">🛰️ Google Satélite Híbrido</option>
+              <option value="relevo">🏔️ Google Relevo / Topografia</option>
+              <option value="ruas" selected>🗺️ OpenStreetMap (Ruas e Vicinais)</option>
+            </select>
+          </div>
+          
+          <div class="progress-container">
+            <div id="offline-progress-bar" class="progress-bar"></div>
+          </div>
+          <p id="offline-progress-text" style="font-size:0.8rem; color:#9ca3af; text-align:center;">Pronto para baixar.</p>
+
+          <p id="offline-stats" style="margin-top:10px; font-weight:600; color:#38bdf8;">Calculando dados salvos...</p>
+
+          <div style="margin-top:16px; display:flex; gap:8px;">
+            <button id="btn-baixar-offline" class="btn btn-primary" style="flex:1;">
+              📥 Baixar Região de Santarém (~15 MB)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE DOWNLOAD DO APP ANDROID (APK) -->
+    <div id="modal-apk" class="modal-overlay">
+      <div class="modal-box" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3 style="display:flex; align-items:center; gap:8px;">
+            <span>🤖</span> Instalar App Nativo Android
+          </h3>
+          <button id="btn-fechar-apk" class="btn btn-secondary btn-sm">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="color:#e2e8f0; font-size:0.92rem; line-height:1.45;">
+            O aplicativo <b>Sondas 2.0</b> roda de forma nativa no seu celular, sem travamentos de navegador, mantendo o <b>mapa e todas as sondas salvos 100% offline</b> para uso no campo.
+          </p>
+
+          <div style="margin: 16px 0; display:flex; flex-direction:column; gap:10px;">
+            <a href="https://github.com/antoniogabrielbio-dot/sondas-apk/releases/download/v1.0.0/Sondas-2.0.apk" class="btn btn-primary" style="padding:14px; font-size:1.02rem; font-weight:700; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(135deg, #10b981, #059669); border:none; box-shadow:0 4px 14px rgba(16,185,129,0.4);">
+              ⚡ Baixar Sondas-2.0.apk (Arquivo APK Direto)
+            </a>
+            <a href="https://github.com/antoniogabrielbio-dot/sondas-apk/releases/download/v1.0.0/Sondas-2.0.zip" class="btn btn-secondary" style="padding:12px; font-size:0.95rem; font-weight:600; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.4); color:#38bdf8;">
+              📦 Baixar Sondas-2.0.zip (Pasta Compactada ZIP)
+            </a>
+            <a href="/Sondas-2.0.apk" download="Sondas-2.0.apk" class="btn btn-secondary" style="padding:9px; font-size:0.82rem; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);">
+              🏠 Baixar via Rede Local Wi-Fi do PC
+            </a>
+          </div>
+
+          <div style="background:rgba(15,23,42,0.6); padding:12px 14px; border-radius:10px; border:1px solid rgba(56,189,248,0.25); font-size:0.84rem; color:#cbd5e1; line-height:1.5;">
+            <b style="color:#38bdf8; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <span>ℹ️</span> Dica rápida para instalar no celular:
+            </b>
+            <ol style="margin:0 0 0 16px; padding:0;">
+              <li>Após o download, toque na notificação <b>"Sondas-2.0.apk concluído"</b> ou abra os <b>Downloads do Chrome</b>.</li>
+              <li>Clique em <b>Instalar</b> (se pedir para permitir fontes desconhecidas, marque Permitir).</li>
+              <li><i>Se seu celular abrir como pasta compactada:</i> clique nos 3 pontinhos do arquivo ➔ <b>Abrir com</b> ➔ <b>Instalador de Pacotes</b>.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER FLUTUANTE INFERIOR MOBILE -->
+    <div id="mobile-apk-banner" class="mobile-apk-toast" style="display:none;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.4rem;">📱</span>
+        <div style="display:flex; flex-direction:column;">
+          <b style="font-size:0.88rem; color:#fff;">App Nativo Disponível</b>
+          <span style="font-size:0.75rem; color:#94a3b8;">Mapa 100% offline e GPS rápido</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button id="btn-banner-baixar" class="btn btn-primary btn-sm" style="background:#10b981; border:none; font-weight:700;">
+          Baixar
+        </button>
+        <button id="btn-banner-fechar" class="btn btn-secondary btn-sm" style="padding:4px 8px;">✕</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="./leaflet/leaflet.js"></script>
+  <script src="./js/updater.js"></script>
+  <script src="./js/offline_tiles.js"></script>
+  <script src="./js/trajetoria.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

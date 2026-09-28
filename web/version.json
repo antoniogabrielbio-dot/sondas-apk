@@ -1,0 +1,12 @@
+{
+  "version": "1.1.0",
+  "name": "Sondas 2.0",
+  "updated_at": "2026-09-28T23:05:00Z",
+  "files": [
+    "js/app.js",
+    "css/style.css",
+    "js/trajetoria.js",
+    "js/offline_tiles.js"
+  ],
+  "changelog": "Adicionado seletor de Satélite e Relevo, e blindagem anti-sumiço no zoom offline."
+}

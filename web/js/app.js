@@ -205,44 +205,118 @@ function initServiceWorker() {
 }
 
 // =========================================================
-// 2. INICIALIZAÇÃO DO MAPA LEAFLET E CAMADAS BLINDADAS
+// 2. INICIALIZAÇÃO DO MAPA LEAFLET E CAMADAS BLINDADAS (INDEXEDDB)
 // =========================================================
 let camadasDisponiveis = {};
 let camadaAtual = localStorage.getItem('sondas_camada_preferida') || 'satelite';
 
+// Camada Offline Nativa com suporte a IndexedDB (TileDB) e interpolação Canvas de blocos pais
+const LocalOfflineTileLayer = L.TileLayer.extend({
+  createTile(coords, done) {
+    const tile = document.createElement('img');
+    tile.setAttribute('role', 'presentation');
+
+    const tipo = this.options.tipo || 'satelite';
+    const key = `${tipo}_${coords.z}_${coords.x}_${coords.y}`;
+
+    // 1. Tenta carregar do armazenamento permanente IndexedDB (TileDB)
+    if (window.TileDB) {
+      TileDB.obterTile(key).then(cachedData => {
+        if (cachedData) {
+          tile.src = cachedData;
+          done(null, tile);
+          return;
+        }
+
+        // 2. Não está em cache
+        if (navigator.onLine) {
+          this.carregarOnlineESalvar(coords, key, tile, done);
+        } else {
+          // 3. 100% OFFLINE: Interpola o bloco do zoom anterior para NUNCA ficar preto!
+          this.recuperarDoBlocoPai(tipo, coords, tile, done);
+        }
+      }).catch(() => {
+        if (navigator.onLine) {
+          this.carregarOnlineESalvar(coords, key, tile, done);
+        } else {
+          this.recuperarDoBlocoPai(tipo, coords, tile, done);
+        }
+      });
+    } else {
+      tile.src = this.getTileUrl(coords);
+      tile.onload = () => done(null, tile);
+      tile.onerror = () => done(null, tile);
+    }
+
+    return tile;
+  },
+
+  carregarOnlineESalvar(coords, key, tile, done) {
+    const url = this.getTileUrl(coords);
+    tile.crossOrigin = 'Anonymous';
+    tile.onload = () => {
+      done(null, tile);
+      // Salva silenciosamente no IndexedDB para uso offline no campo
+      if (window.TileDB) {
+        TileDB.salvarTileDaImg(key, tile);
+      }
+    };
+    tile.onerror = () => {
+      // Se falhar a conexão, interpola do bloco pai imediatamente
+      this.recuperarDoBlocoPai(this.options.tipo || 'satelite', coords, tile, done);
+    };
+    tile.src = url;
+  },
+
+  recuperarDoBlocoPai(tipo, coords, tile, done) {
+    if (window.TileDB) {
+      TileDB.buscarBlocoPai(tipo, coords).then(canvasData => {
+        if (canvasData) {
+          tile.src = canvasData;
+          done(null, tile);
+        } else {
+          // Fundo suave de floresta/relevo em vez de tela preta
+          tile.style.backgroundColor = (tipo.includes('satelite')) ? '#132a13' : '#1e293b';
+          done(null, tile);
+        }
+      });
+    } else {
+      done(null, tile);
+    }
+  }
+});
+
 function criarCamadasMapas() {
-  // Configuração blindada:
-  // maxNativeZoom = 15 garante que blocos de satélite e relevo existam em alta qualidade.
-  // maxZoom = 22 permite aproximar até o chão (nível de centímetros).
-  // keepBuffer = 80 mantém blocos na memória RAM sem descarregar.
-  // Quando o usuário dá zoom acima de 15, o Leaflet escala via aceleração de hardware 3D
-  // NUNCA apagando a tela nem mostrando erro de conexão ou blocos cinzas!
   const opcoesBlindadas = {
-    maxNativeZoom: 15,
+    maxNativeZoom: 16,
     maxZoom: 22,
-    keepBuffer: 80,
+    keepBuffer: 100,
     updateWhenZooming: false,
     updateWhenIdle: true
   };
 
   camadasDisponiveis = {
     // 1. Google Satélite Híbrido (com nomes de estradas, rios e ramais)
-    satelite: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    satelite: new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
       subdomains: ['0', '1', '2', '3'],
+      tipo: 'satelite',
       ...opcoesBlindadas
     }),
     // 2. Google Relevo / Topografia (curvas de nível e relevo sombreado 3D da mata)
-    relevo: L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+    relevo: new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
       subdomains: ['0', '1', '2', '3'],
+      tipo: 'relevo',
       ...opcoesBlindadas
     }),
     // 3. OpenStreetMap (Ruas, cidades e vicinais)
-    ruas: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    ruas: new LocalOfflineTileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      tipo: 'ruas',
       ...opcoesBlindadas
     }),
     // 4. Google Satélite Puro (sem rótulos para ver copas das árvores e clareiras)
-    satelite_puro: L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    satelite_puro: new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
       subdomains: ['0', '1', '2', '3'],
+      tipo: 'satelite_puro',
       ...opcoesBlindadas
     })
   };

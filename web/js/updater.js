@@ -13,7 +13,7 @@ const AppUpdater = {
 
     // Verifica novas versões na nuvem se estiver conectado
     if (navigator.onLine) {
-      setTimeout(() => this.verificarAtualizacao(), 3000);
+      setTimeout(() => this.verificarAtualizacao(), 2500);
     }
 
     window.addEventListener('online', () => {
@@ -28,10 +28,13 @@ const AppUpdater = {
 
       const css = localStorage.getItem('sondas_ota_css');
       if (css) {
-        const style = document.createElement('style');
-        style.id = 'ota-injected-styles';
+        let style = document.getElementById('ota-injected-styles');
+        if (!style) {
+          style = document.createElement('style');
+          style.id = 'ota-injected-styles';
+          document.head.appendChild(style);
+        }
         style.textContent = css;
-        document.head.appendChild(style);
       }
     } catch (e) {
       console.warn('[OTA] Erro ao carregar cache local:', e);

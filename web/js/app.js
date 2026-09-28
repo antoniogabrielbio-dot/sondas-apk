@@ -66,6 +66,24 @@ const SyncEngine = {
     if (cache) {
       try {
         allSondas = JSON.parse(cache);
+        // Sanitiza qualquer resquício de tag HTML em status e limpa flags antigas
+        if (Array.isArray(allSondas)) {
+          let dirty = false;
+          allSondas.forEach(s => {
+            if (s.status && typeof s.status === 'string' && s.status.includes('<')) {
+              s.status = s.status.replace(/<[^>]*>?/gm, '').trim();
+              dirty = true;
+            }
+            if (s._patched) {
+              delete s._patched;
+              dirty = true;
+            }
+          });
+          if (dirty) {
+            localStorage.setItem('sondas_cache_local', JSON.stringify(allSondas));
+          }
+        }
+
         // Aplica alterações offline pendentes
         const fila = this.obterFilaOffline();
         Object.keys(fila).forEach(cod => {
@@ -615,16 +633,65 @@ async function alterarStatus(novoStatus) {
 }
 
 // =========================================================
-// 7. MODO CAÇADA - GPS DO CAÇADOR EM TEMPO REAL
+// 7. MODO CAÇADA - GPS DO CAÇADOR & BÚSSOLA ESTILO GOOGLE MAPS
 // =========================================================
+let compassHeading = null;
+let compassOrientationListener = null;
+
+function ativarBussolaCelular() {
+  if (compassOrientationListener) return;
+
+  const processOrientation = (e) => {
+    let heading = null;
+    if (e.webkitCompassHeading !== undefined) {
+      // iOS
+      heading = e.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      // Android Chrome / WebView
+      heading = (360 - e.alpha) % 360;
+    }
+
+    if (heading !== null && !isNaN(heading)) {
+      compassHeading = Math.round(heading);
+      atualizarRotacaoPonteiro(compassHeading);
+    }
+  };
+
+  if ('ondeviceorientationabsolute' in window) {
+    window.addEventListener('deviceorientationabsolute', processOrientation, true);
+    compassOrientationListener = { event: 'deviceorientationabsolute', handler: processOrientation };
+  } else if ('ondeviceorientation' in window) {
+    window.addEventListener('deviceorientation', processOrientation, true);
+    compassOrientationListener = { event: 'deviceorientation', handler: processOrientation };
+  }
+}
+
+function desativarBussolaCelular() {
+  if (compassOrientationListener) {
+    window.removeEventListener(compassOrientationListener.event, compassOrientationListener.handler, true);
+    compassOrientationListener = null;
+  }
+}
+
+function atualizarRotacaoPonteiro(graus) {
+  const beam = document.getElementById('hunter-heading-beam');
+  if (beam) {
+    beam.style.transform = `rotate(${graus}deg)`;
+  }
+  atualizarHudCacada();
+}
+
 function toggleHunterGPS() {
   const btn = document.getElementById('btn-hunter-gps');
   const icon = document.getElementById('fab-gps-icon');
 
   if (hunterWatchId !== null) {
-    // Desliga GPS
+    // Desliga GPS e Bússola
     navigator.geolocation.clearWatch(hunterWatchId);
     hunterWatchId = null;
+    desativarBussolaCelular();
+    compassHeading = null;
+
     if (hunterMarker) map.removeLayer(hunterMarker);
     if (hunterAccuracyCircle) map.removeLayer(hunterAccuracyCircle);
     if (huntTrackingLine) map.removeLayer(huntTrackingLine);
@@ -647,9 +714,12 @@ function toggleHunterGPS() {
 
   if (btn) {
     btn.classList.add('active', 'fab-active');
-    btn.title = 'GPS Ativo (Toque para desligar)';
+    btn.title = 'GPS & Bússola Ativos (Toque para desligar)';
   }
   if (icon) icon.innerText = '🛰️';
+
+  // Inicia detecção contínua da orientação magnética do aparelho
+  ativarBussolaCelular();
 
   hunterWatchId = navigator.geolocation.watchPosition(
     (pos) => {
@@ -662,10 +732,21 @@ function toggleHunterGPS() {
       const latlng = [hunterPosition.lat, hunterPosition.lon];
 
       if (!hunterMarker) {
+        // Marcador Google Maps com Feixe de Lanterna / Ponteiro de Direção
         const icon = L.divIcon({
-          className: 'hunter-pulsing-icon',
-          iconSize: [18, 18],
-          iconAnchor: [9, 9]
+          className: 'google-maps-hunter-wrapper',
+          html: `
+            <div class="google-hunter-marker">
+              <div id="hunter-heading-beam" class="heading-beam-wrapper" style="transform: rotate(${compassHeading || 0}deg);">
+                <div class="heading-cone"></div>
+                <div class="heading-arrow">▲</div>
+              </div>
+              <div class="hunter-core-dot"></div>
+              <div class="hunter-pulse-ring"></div>
+            </div>
+          `,
+          iconSize: [60, 60],
+          iconAnchor: [30, 30]
         });
         hunterMarker = L.marker(latlng, { icon: icon }).addTo(map);
         hunterAccuracyCircle = L.circle(latlng, {
@@ -676,21 +757,28 @@ function toggleHunterGPS() {
           weight: 1
         }).addTo(map);
 
-        map.setView(latlng, 14);
+        map.setView(latlng, 15);
       } else {
         hunterMarker.setLatLng(latlng);
         hunterAccuracyCircle.setLatLng(latlng);
         hunterAccuracyCircle.setRadius(pos.coords.accuracy);
       }
 
+      // Se o sensor magnético não fornecer heading, usa o heading do GPS ao caminhar
+      if (pos.coords.heading !== null && !isNaN(pos.coords.heading) && pos.coords.heading >= 0) {
+        if (compassHeading === null) {
+          atualizarRotacaoPonteiro(Math.round(pos.coords.heading));
+        }
+      }
+
       atualizarHudCacada();
     },
     (err) => {
       console.warn('Erro ao obter GPS:', err);
-      alert('Não foi possível obter a posição GPS. Verifique a permissão no navegador.');
+      alert('Não foi possível obter a posição GPS. Verifique a permissão no aparelho.');
       toggleHunterGPS();
     },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 12000 }
   );
 }
 
@@ -754,7 +842,17 @@ function atualizarHudCacada() {
     document.getElementById('hud-distancia').innerText = `${res.distanciaMetros} m`;
   }
 
-  document.getElementById('hud-rumo').innerText = `Rumo: ${res.azimuteGraus}° (${res.pontoCardinal})`;
+  let rumoTxt = `Rumo: ${res.azimuteGraus}° (${res.pontoCardinal})`;
+  if (compassHeading !== null) {
+    // Calcula diferença angular para conferir se o celular está alinhado com o alvo
+    const diff = Math.abs((res.azimuteGraus - compassHeading + 180) % 360 - 180);
+    if (diff <= 18) {
+      rumoTxt += ` • <span style="color:#10b981; font-weight:800;">🎯 NA MIRA!</span>`;
+    } else {
+      rumoTxt += ` • Celular: ${compassHeading}°`;
+    }
+  }
+  document.getElementById('hud-rumo').innerHTML = rumoTxt;
   hud.style.display = 'block';
 }
 

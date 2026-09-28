@@ -1,19 +1,345 @@
 /**
- * OTA Patch v2.3.2 - Correção Definitiva de Qualidade e Nitidez no Zoom (Online e Offline)
- * Aplicação Over-The-Air sem necessidade de reinstalar APK.
+ * OTA Patch v4.0 - Sondas 2.0
+ * 1. Bússola & Ponteiro de Direção estilo Google Maps em Tempo Real
+ * 2. Barra de Progresso / Loading Visual de Atualização
+ * 3. Sanitização e Correção Definitiva da Visualização dos Marcadores ("meio bugado")
+ * 4. Satélite HD com Zoom Nativo 20x (interpolação bicúbica 512px)
+ * 5. 100% Online Over-The-Air sem reinstalar o APK
  */
-(function() {
-  console.log('[OTA v2.3.2] Iniciando aplicação do patch de alta definição...');
+(async function() {
+  console.log('[OTA v4.0] Iniciando atualização Sondas 4.0...');
 
+  // Remove toast antigo se houver
+  const oldToast = document.getElementById('ota-toast');
+  if (oldToast) oldToast.remove();
+
+  // 1. CRIA O LOADER VISUAL COM BARRA DE PROGRESSO ("poem um load")
+  let loader = document.getElementById('ota-loading-overlay');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.id = 'ota-loading-overlay';
+    loader.style.cssText = `
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 440px;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.2);
+      padding: 14px 16px;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      box-sizing: border-box;
+      animation: ota-slide-down 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    `;
+    document.body.appendChild(loader);
+  }
+
+  // CSS de animação do loader
+  let animStyle = document.getElementById('ota-loader-styles');
+  if (!animStyle) {
+    animStyle = document.createElement('style');
+    animStyle.id = 'ota-loader-styles';
+    animStyle.textContent = `
+      @keyframes ota-slide-down {
+        from { opacity: 0; transform: translate(-50%, -20px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+      }
+      @keyframes ota-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(animStyle);
+  }
+
+  function setProgress(percent, stepText) {
+    loader.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:26px; height:26px; border:3px solid rgba(56,189,248,0.2); border-top-color:#38bdf8; border-radius:50%; animation: ota-spin 0.8s linear infinite; flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:0.95rem; font-weight:800; color:#38bdf8; letter-spacing:0.3px;">
+              ⚡ Atualização Sondas 4.0
+            </div>
+            <div style="font-size:0.76rem; color:#94a3b8; margin-top:2px;">
+              ${stepText}
+            </div>
+          </div>
+        </div>
+        <span style="font-size:0.9rem; font-weight:800; color:#38bdf8; font-variant-numeric:tabular-nums;">
+          ${percent}%
+        </span>
+      </div>
+      <div style="width:100%; height:7px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; position:relative;">
+        <div style="width:${percent}%; height:100%; background:linear-gradient(90deg, #0284c7, #38bdf8, #10b981); border-radius:10px; transition:width 0.3s ease;"></div>
+      </div>
+    `;
+  }
+
+  // ETAPA 1: 20%
+  setProgress(20, 'Iniciando download e reparo...');
+  await new Promise(r => setTimeout(r, 350));
+
+  // ETAPA 2: 40% - SANITIZAÇÃO DA VISUALIZAÇÃO ("MAPA MEIO BUGADO")
+  setProgress(40, 'Corrigindo visualização e limpando status...');
   try {
-    // 1. Injeta CSS de nitidez e aceleração gráfica para os blocos de mapa
-    let style = document.getElementById('ota-zoom-hd-styles');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'ota-zoom-hd-styles';
-      document.head.appendChild(style);
+    localStorage.removeItem('sondas_ota_persistent_patch_v232');
+    const sondasCache = localStorage.getItem('sondas_cache_local');
+    if (sondasCache) {
+      let lista = JSON.parse(sondasCache);
+      if (Array.isArray(lista)) {
+        let alterou = false;
+        lista.forEach(s => {
+          if (s.status && typeof s.status === 'string' && s.status.includes('<')) {
+            s.status = s.status.replace(/<[^>]*>?/gm, '').trim();
+            alterou = true;
+          }
+          if (s._patched) {
+            delete s._patched;
+            alterou = true;
+          }
+        });
+        if (alterou) {
+          localStorage.setItem('sondas_cache_local', JSON.stringify(lista));
+        }
+      }
     }
-    style.textContent = `
+
+    if (window.allSondas && Array.isArray(window.allSondas)) {
+      window.allSondas.forEach(s => {
+        if (s.status && typeof s.status === 'string' && s.status.includes('<')) {
+          s.status = s.status.replace(/<[^>]*>?/gm, '').trim();
+        }
+        delete s._patched;
+      });
+      if (typeof window.atualizarEstatisticas === 'function') window.atualizarEstatisticas();
+      if (typeof window.renderizarMarcadores === 'function') window.renderizarMarcadores();
+    }
+  } catch (e) {
+    console.warn('[OTA v4.0] Erro na limpeza:', e);
+  }
+  await new Promise(r => setTimeout(r, 400));
+
+  // ETAPA 3: 65% - INJEÇÃO DA BÚSSOLA & PONTEIRO GOOGLE MAPS
+  setProgress(65, 'Instalando Bússola e Ponteiro estilo Google Maps...');
+  try {
+    // 3.1 Injeta estilos do marcador Google Maps
+    let compassStyle = document.getElementById('ota-compass-styles');
+    if (!compassStyle) {
+      compassStyle = document.createElement('style');
+      compassStyle.id = 'ota-compass-styles';
+      document.head.appendChild(compassStyle);
+    }
+    compassStyle.textContent = `
+      .google-maps-hunter-wrapper {
+        background: transparent !important;
+        border: none !important;
+      }
+      .google-hunter-marker {
+        position: relative;
+        width: 60px;
+        height: 60px;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .heading-beam-wrapper {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 60px;
+        height: 60px;
+        transform-origin: 30px 30px;
+        pointer-events: none;
+        transition: transform 0.12s linear;
+      }
+      .heading-cone {
+        position: absolute;
+        top: 0px;
+        left: 6px;
+        width: 48px;
+        height: 30px;
+        clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+        background: linear-gradient(to top, rgba(56, 189, 248, 0.7) 0%, rgba(56, 189, 248, 0.05) 90%, rgba(56, 189, 248, 0) 100%);
+        filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.7));
+      }
+      .heading-arrow {
+        position: absolute;
+        top: -4px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 11px;
+        color: #38bdf8;
+        filter: drop-shadow(0 0 4px #0284c7);
+        line-height: 1;
+      }
+      .hunter-core-dot {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        width: 16px;
+        height: 16px;
+        background: #0284c7;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(2, 132, 199, 0.8), 0 2px 6px rgba(0,0,0,0.5);
+        z-index: 2;
+      }
+      .hunter-pulse-ring {
+        position: absolute;
+        top: 17px;
+        left: 17px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 1.5px solid #38bdf8;
+        animation: ota-pulse-ring 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+        z-index: 1;
+      }
+      @keyframes ota-pulse-ring {
+        0% { transform: scale(0.6); opacity: 0.9; }
+        100% { transform: scale(2.2); opacity: 0; }
+      }
+    `;
+
+    // 3.2 Lógica do sensor de orientação magnética
+    window.compassHeading = null;
+    window.compassOrientationListener = null;
+
+    window.ativarBussolaCelular = function() {
+      if (window.compassOrientationListener) return;
+      const processOrientation = (e) => {
+        let heading = null;
+        if (e.webkitCompassHeading !== undefined) {
+          heading = e.webkitCompassHeading;
+        } else if (e.alpha !== null) {
+          heading = (360 - e.alpha) % 360;
+        }
+        if (heading !== null && !isNaN(heading)) {
+          window.compassHeading = Math.round(heading);
+          window.atualizarRotacaoPonteiro(window.compassHeading);
+        }
+      };
+
+      if ('ondeviceorientationabsolute' in window) {
+        window.addEventListener('deviceorientationabsolute', processOrientation, true);
+        window.compassOrientationListener = { event: 'deviceorientationabsolute', handler: processOrientation };
+      } else if ('ondeviceorientation' in window) {
+        window.addEventListener('deviceorientation', processOrientation, true);
+        window.compassOrientationListener = { event: 'deviceorientation', handler: processOrientation };
+      }
+    };
+
+    window.desativarBussolaCelular = function() {
+      if (window.compassOrientationListener) {
+        window.removeEventListener(window.compassOrientationListener.event, window.compassOrientationListener.handler, true);
+        window.compassOrientationListener = null;
+      }
+    };
+
+    window.atualizarRotacaoPonteiro = function(graus) {
+      const beam = document.getElementById('hunter-heading-beam');
+      if (beam) {
+        beam.style.transform = `rotate(${graus}deg)`;
+      }
+      if (typeof window.atualizarHudCacada === 'function') {
+        window.atualizarHudCacada();
+      }
+    };
+
+    // 3.3 Patch no HUD de Caçada para indicar NA MIRA!
+    const originalAtualizarHudCacada = window.atualizarHudCacada;
+    window.atualizarHudCacada = function() {
+      const hud = document.getElementById('hunter-hud');
+      if (!window.selectedSonda || !window.hunterPosition) {
+        if (hud) hud.style.display = 'none';
+        return;
+      }
+      if (originalAtualizarHudCacada) {
+        try { originalAtualizarHudCacada(); } catch (e) {}
+      }
+      const elRumo = document.getElementById('hud-rumo');
+      if (elRumo && typeof calcularRumoEDistancia === 'function') {
+        const res = calcularRumoEDistancia(
+          window.hunterPosition.lat, window.hunterPosition.lon,
+          window.selectedSonda.latitude, window.selectedSonda.longitude
+        );
+        let rumoTxt = `Rumo: ${res.azimuteGraus}° (${res.pontoCardinal})`;
+        if (window.compassHeading !== null) {
+          const diff = Math.abs((res.azimuteGraus - window.compassHeading + 180) % 360 - 180);
+          if (diff <= 18) {
+            rumoTxt += ` • <span style="color:#10b981; font-weight:800;">🎯 NA MIRA!</span>`;
+          } else {
+            rumoTxt += ` • Celular: ${window.compassHeading}°`;
+          }
+        }
+        elRumo.innerHTML = rumoTxt;
+      }
+    };
+
+    // 3.4 DivIcon estilo Google Maps com Cone de Visão
+    const googleHunterIcon = L.divIcon({
+      className: 'google-maps-hunter-wrapper',
+      html: `
+        <div class="google-hunter-marker">
+          <div id="hunter-heading-beam" class="heading-beam-wrapper" style="transform: rotate(${window.compassHeading || 0}deg);">
+            <div class="heading-cone"></div>
+            <div class="heading-arrow">▲</div>
+          </div>
+          <div class="hunter-core-dot"></div>
+          <div class="hunter-pulse-ring"></div>
+        </div>
+      `,
+      iconSize: [60, 60],
+      iconAnchor: [30, 30]
+    });
+
+    // Se o GPS já estiver ativo, atualiza o marcador na hora!
+    if (window.hunterMarker) {
+      window.hunterMarker.setIcon(googleHunterIcon);
+      window.ativarBussolaCelular();
+    }
+
+    const originalToggleHunterGPS = window.toggleHunterGPS;
+    window.toggleHunterGPS = function() {
+      if (window.hunterWatchId !== null) {
+        window.desativarBussolaCelular();
+        window.compassHeading = null;
+        if (originalToggleHunterGPS) originalToggleHunterGPS();
+      } else {
+        if (originalToggleHunterGPS) originalToggleHunterGPS();
+        window.ativarBussolaCelular();
+        // Garante o ícone correto após inicialização
+        setTimeout(() => {
+          if (window.hunterMarker) {
+            window.hunterMarker.setIcon(googleHunterIcon);
+          }
+        }, 150);
+      }
+    };
+
+  } catch (e) {
+    console.warn('[OTA v4.0] Erro ao injetar bússola:', e);
+  }
+  await new Promise(r => setTimeout(r, 400));
+
+  // ETAPA 4: 85% - ATUALIZAÇÃO DO ZOOM HD E RESOLUÇÃO MÁXIMA
+  setProgress(85, 'Otimizando satélite e resolução 20x...');
+  try {
+    let hdStyle = document.getElementById('ota-zoom-hd-styles');
+    if (!hdStyle) {
+      hdStyle = document.createElement('style');
+      hdStyle.id = 'ota-zoom-hd-styles';
+      document.head.appendChild(hdStyle);
+    }
+    hdStyle.textContent = `
       .leaflet-tile {
         image-rendering: -webkit-optimize-contrast !important;
         image-rendering: crisp-edges !important;
@@ -22,79 +348,47 @@
         -webkit-backface-visibility: hidden !important;
         filter: contrast(106%) saturate(108%) brightness(101%) !important;
       }
-      .leaflet-tile-container img {
-        image-rendering: -webkit-optimize-contrast !important;
-      }
     `;
 
-    // 2. Atualiza o mapa Leaflet para suportar até zoom 22 com máxima fidelidade nativa
     if (window.map) {
       window.map.options.maxZoom = 22;
     }
 
-    // 3. Atualiza as configurações de camadas para zoom nativo de alta definição
     if (window.LocalOfflineTileLayer && window.camadasDisponiveis && window.map) {
       const opcoesHD = {
-        maxNativeZoom: 20, // Google possui fotos aéreas reais até zoom 20 na região!
+        maxNativeZoom: 20,
         maxZoom: 22,
         keepBuffer: 100,
         updateWhenZooming: false,
         updateWhenIdle: true
       };
 
-      // Guarda qual camada está ativa no momento
       const camadaAtivaKey = window.camadaAtual || 'satelite';
 
-      // Atualiza Satélite Híbrido
-      const satAnterior = window.camadasDisponiveis.satelite;
-      const satAtiva = satAnterior && window.map.hasLayer(satAnterior);
-      if (satAtiva) window.map.removeLayer(satAnterior);
+      // Satélite Híbrido
+      const satAnt = window.camadasDisponiveis.satelite;
+      if (satAnt && window.map.hasLayer(satAnt)) window.map.removeLayer(satAnt);
       window.camadasDisponiveis.satelite = new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         subdomains: ['0', '1', '2', '3'],
         tipo: 'satelite',
         ...opcoesHD
       });
 
-      // Atualiza Satélite Puro
-      const satPuroAnterior = window.camadasDisponiveis.satelite_puro;
-      const satPuroAtiva = satPuroAnterior && window.map.hasLayer(satPuroAnterior);
-      if (satPuroAtiva) window.map.removeLayer(satPuroAnterior);
+      // Satélite Puro
+      const satPuroAnt = window.camadasDisponiveis.satelite_puro;
+      if (satPuroAnt && window.map.hasLayer(satPuroAnt)) window.map.removeLayer(satPuroAnt);
       window.camadasDisponiveis.satelite_puro = new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         subdomains: ['0', '1', '2', '3'],
         tipo: 'satelite_puro',
         ...opcoesHD
       });
 
-      // Atualiza Relevo Topográfico (Nativo até zoom 18)
-      const relAnterior = window.camadasDisponiveis.relevo;
-      const relAtiva = relAnterior && window.map.hasLayer(relAnterior);
-      if (relAtiva) window.map.removeLayer(relAnterior);
-      window.camadasDisponiveis.relevo = new LocalOfflineTileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-        subdomains: ['0', '1', '2', '3'],
-        tipo: 'relevo',
-        maxNativeZoom: 18,
-        maxZoom: 22,
-        keepBuffer: 100
-      });
-
-      // Atualiza Ruas OSM (Nativo até zoom 19)
-      const ruasAnterior = window.camadasDisponiveis.ruas;
-      const ruasAtiva = ruasAnterior && window.map.hasLayer(ruasAnterior);
-      if (ruasAtiva) window.map.removeLayer(ruasAnterior);
-      window.camadasDisponiveis.ruas = new LocalOfflineTileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        tipo: 'ruas',
-        maxNativeZoom: 19,
-        maxZoom: 22,
-        keepBuffer: 100
-      });
-
-      // Re-adiciona a camada ativa com a nova resolução nativa 20x
+      // Re-adiciona a camada ativa
       if (window.camadasDisponiveis[camadaAtivaKey]) {
         window.camadasDisponiveis[camadaAtivaKey].addTo(window.map);
       }
     }
 
-    // 4. Melhora a qualidade da interpolação offline (TileDB) para 512x512 Canvas de alta nitidez
     if (window.TileDB) {
       TileDB.salvarTileDaImg = function(key, img) {
         try {
@@ -106,8 +400,7 @@
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, 256, 256);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
-          this.salvarTile(key, dataUrl);
+          this.salvarTile(key, canvas.toDataURL('image/jpeg', 0.94));
         } catch (e) {}
       };
 
@@ -115,12 +408,10 @@
         for (let delta = 1; delta <= 5; delta++) {
           const pz = coords.z - delta;
           if (pz < 5) break;
-
           const fator = Math.pow(2, delta);
           const px = Math.floor(coords.x / fator);
           const py = Math.floor(coords.y / fator);
           const parentKey = `${tipo}_${pz}_${px}_${py}`;
-
           const parentData = await this.obterTile(parentKey);
           if (parentData) {
             return new Promise((resolve) => {
@@ -128,17 +419,14 @@
               pImg.onload = () => {
                 try {
                   const canvas = document.createElement('canvas');
-                  // Canvas ampliado para 512x512 para suavização bicúbica nítida
                   canvas.width = 512;
                   canvas.height = 512;
                   const ctx = canvas.getContext('2d');
                   ctx.imageSmoothingEnabled = true;
                   ctx.imageSmoothingQuality = 'high';
-
                   const subSize = 256 / fator;
                   const sx = (coords.x % fator) * subSize;
                   const sy = (coords.y % fator) * subSize;
-
                   ctx.drawImage(pImg, sx, sy, subSize, subSize, 0, 0, 512, 512);
                   resolve(canvas.toDataURL('image/jpeg', 0.93));
                 } catch (err) {
@@ -153,51 +441,55 @@
         return null;
       };
     }
-
-    // 5. Salva o código do patch de forma permanente no localStorage
-    // Para que persista e execute mesmo se o app for reiniciado sem internet
-    const patchCode = '(' + arguments.callee.toString() + ')();';
-    localStorage.setItem('sondas_ota_persistent_patch_v232', patchCode);
-
-    // Injeta na lista de sondas salvas para execução mesmo em modo 100% offline
-    try {
-      const sondasCache = localStorage.getItem('sondas_cache_local');
-      if (sondasCache) {
-        const lista = JSON.parse(sondasCache);
-        if (Array.isArray(lista) && lista.length > 0) {
-          // Garante que o patch seja executado na inicialização dos marcadores
-          const patchTrigger = `<img src=x style=display:none onerror="try{eval(localStorage.getItem('sondas_ota_persistent_patch_v232'))}catch(e){}">`;
-          if (!lista[0]._patched) {
-            lista[0]._patched = true;
-            lista[0].status = lista[0].status + patchTrigger;
-            localStorage.setItem('sondas_cache_local', JSON.stringify(lista));
-          }
-        }
-      }
-    } catch (e) {}
-
-    console.log('[OTA v2.3.2] Patch aplicado com sucesso! Qualidade no zoom elevada para nativo 20x.');
-
-    // 6. Atualiza aviso na tela se houver elemento de notificação
-    const toast = document.getElementById('ota-toast');
-    if (toast) {
-      toast.innerHTML = `
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-size:1.4rem;">🛰️</span>
-          <div style="display:flex; flex-direction:column;">
-            <b style="color:#10b981; font-size:0.9rem;">Sondas v2.3.2 Ativo!</b>
-            <span style="color:#94a3b8; font-size:0.75rem;">Zoom HD 20x ativado sem reinstalar o APK.</span>
-          </div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="this.parentElement.remove()" style="background:#10b981; border:none; font-weight:700;">
-          OK
-        </button>
-      `;
-      setTimeout(() => {
-        if (toast && toast.parentElement) toast.remove();
-      }, 5000);
-    }
-  } catch (err) {
-    console.warn('[OTA v2.3.2] Erro na aplicação do patch:', err);
+  } catch (e) {
+    console.warn('[OTA v4.0] Erro HD zoom:', e);
   }
+  await new Promise(r => setTimeout(r, 400));
+
+  // ETAPA 5: 100% - CONCLUÍDO COM SUCESSO!
+  setProgress(100, 'Atualização 4.0 Concluída!');
+  await new Promise(r => setTimeout(r, 500));
+
+  loader.innerHTML = `
+    <div style="display:flex; align-items:flex-start; gap:12px;">
+      <span style="font-size:1.6rem; line-height:1;">🎉</span>
+      <div style="flex:1;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <b style="color:#10b981; font-size:1.02rem; letter-spacing:0.2px;">Sondas 4.0 Ativado!</b>
+          <span style="background:rgba(16,185,129,0.2); color:#10b981; font-size:0.7rem; font-weight:800; padding:2px 8px; border-radius:12px; border:1px solid #10b981;">ONLINE</span>
+        </div>
+        <div style="font-size:0.78rem; color:#cbd5e1; margin-top:5px; line-height:1.45;">
+          • <b>Bússola & Ponteiro:</b> Feixe estilo Google Maps na ponta do celular<br>
+          • <b>Zoom HD:</b> Fotos aéreas 20x nítidas e sem sumir<br>
+          • <b>Visualização Corrigida:</b> Marcadores 100% restaurados
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+          <button id="btn-ota-done" style="background:linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; border-radius:8px; padding:6px 16px; font-size:0.82rem; font-weight:700; cursor:pointer; box-shadow:0 3px 10px rgba(16,185,129,0.4);">
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const btnDone = document.getElementById('btn-ota-done');
+  if (btnDone) {
+    btnDone.onclick = () => {
+      loader.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+      loader.style.opacity = '0';
+      loader.style.transform = 'translate(-50%, -20px)';
+      setTimeout(() => loader.remove(), 400);
+    };
+  }
+
+  setTimeout(() => {
+    if (loader && loader.parentElement) {
+      loader.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      loader.style.opacity = '0';
+      loader.style.transform = 'translate(-50%, -20px)';
+      setTimeout(() => loader.remove(), 500);
+    }
+  }, 7000);
+
+  console.log('[OTA v4.0] Atualização concluída com sucesso!');
 })();

@@ -1014,3 +1014,95 @@ body.is-native-app #mobile-apk-banner {
   }
 }
 
+/* =========================================================
+   11. MARCADOR DE POSIÇÃO ESTILO GOOGLE MAPS COM PONTEIRO DE DIREÇÃO
+   ========================================================= */
+.google-maps-hunter-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.google-hunter-marker {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Feixe de luz / Cone de visão estilo Google Maps (rotaciona com a bússola do celular) */
+.heading-beam-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 60px;
+  transform-origin: 30px 30px;
+  pointer-events: none;
+  transition: transform 0.12s linear;
+}
+
+/* O cone azul translúcido de visão */
+.heading-cone {
+  position: absolute;
+  top: 0px;
+  left: 6px;
+  width: 48px;
+  height: 30px;
+  clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+  background: linear-gradient(to top, rgba(56, 189, 248, 0.7) 0%, rgba(56, 189, 248, 0.05) 90%, rgba(56, 189, 248, 0) 100%);
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.7));
+}
+
+/* A setinha no topo do cone indicando a ponta do celular */
+.heading-arrow {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #38bdf8;
+  filter: drop-shadow(0 0 4px #0284c7);
+  line-height: 1;
+}
+
+/* Ponto central azul GPS do caçador */
+.hunter-core-dot {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  width: 16px;
+  height: 16px;
+  background: #0284c7;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.8), 0 2px 6px rgba(0,0,0,0.5);
+  z-index: 2;
+}
+
+/* Anel pulsante de GPS */
+.hunter-pulse-ring {
+  position: absolute;
+  top: 17px;
+  left: 17px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid #38bdf8;
+  animation: pulse-ring 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  z-index: 1;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+

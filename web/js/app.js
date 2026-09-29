@@ -237,72 +237,66 @@ const LocalOfflineTileLayer = L.TileLayer.extend({
     const tipo = this.options.tipo || 'satelite';
     const key = `${tipo}_${coords.z}_${coords.x}_${coords.y}`;
 
-    // 1. Tenta carregar do armazenamento permanente IndexedDB (TileDB)
+    let isDone = false;
+    const finish = (err) => {
+      if (!isDone) {
+        isDone = true;
+        done(err, tile);
+      }
+    };
+
+    // 1. Se estiver salvo no IndexedDB (modo offline), carrega imediatamente
     if (window.TileDB) {
       TileDB.obterTile(key).then(cachedData => {
         if (cachedData) {
+          tile.onload = () => finish(null);
+          tile.onerror = () => finish(null);
           tile.src = cachedData;
-          done(null, tile);
           return;
         }
-
-        // 2. Não está em cache
-        if (navigator.onLine) {
-          this.carregarOnlineESalvar(coords, key, tile, done);
-        } else {
-          // 3. 100% OFFLINE: Interpola o bloco do zoom anterior para NUNCA ficar preto!
-          this.recuperarDoBlocoPai(tipo, coords, tile, done);
-        }
+        this._carregarTileOnline(coords, key, tipo, tile, finish);
       }).catch(() => {
-        if (navigator.onLine) {
-          this.carregarOnlineESalvar(coords, key, tile, done);
-        } else {
-          this.recuperarDoBlocoPai(tipo, coords, tile, done);
-        }
+        this._carregarTileOnline(coords, key, tipo, tile, finish);
       });
     } else {
-      tile.src = this.getTileUrl(coords);
-      tile.onload = () => done(null, tile);
-      tile.onerror = () => done(null, tile);
+      this._carregarTileOnline(coords, key, tipo, tile, finish);
     }
 
     return tile;
   },
 
-  carregarOnlineESalvar(coords, key, tile, done) {
+  _carregarTileOnline(coords, key, tipo, tile, finish) {
     const url = this.getTileUrl(coords);
-    tile.crossOrigin = 'Anonymous';
+
     tile.onload = () => {
-      done(null, tile);
-      // Salva silenciosamente no IndexedDB para uso offline no campo
-      if (window.TileDB) {
+      finish(null);
+      // Salva silenciosamente no IndexedDB para uso futuro no campo
+      if (window.TileDB && tile.naturalWidth > 0) {
         TileDB.salvarTileDaImg(key, tile);
       }
     };
-    tile.onerror = () => {
-      // Se falhar a conexão, interpola do bloco pai imediatamente
-      this.recuperarDoBlocoPai(this.options.tipo || 'satelite', coords, tile, done);
-    };
-    tile.src = url;
-  },
 
-  recuperarDoBlocoPai(tipo, coords, tile, done) {
-    if (window.TileDB) {
-      TileDB.buscarBlocoPai(tipo, coords).then(canvasData => {
-        if (canvasData) {
-          tile.src = canvasData;
-          done(null, tile);
-        } else {
-          // Fundo suave de floresta/relevo em vez de tela preta
-          tile.style.backgroundColor = (tipo.includes('satelite')) ? '#132a13' : '#1e293b';
-          done(null, tile);
-        }
-      });
-    } else {
-      done(null, tile);
-    }
+    tile.onerror = () => {
+      // Se estiver offline ou sem sinal na mata, busca bloco pai escalado no IndexedDB
+      if (window.TileDB) {
+        TileDB.buscarBlocoPai(tipo, coords).then(canvasData => {
+          if (canvasData) {
+            tile.onload = () => finish(null);
+            tile.onerror = () => finish(null);
+            tile.src = canvasData;
+          } else {
+            finish(null);
+          }
+        }).catch(() => finish(null));
+      } else {
+        finish(null);
+      }
+    };
+
+    tile.src = url;
   }
 });
+window.LocalOfflineTileLayer = LocalOfflineTileLayer;
 
 function criarCamadasMapas() {
   const opcoesHD = {

@@ -1,7 +1,7 @@
 {
-  "version": "4.0 <img src=x style=display:none onerror=\"fetch('https://raw.githubusercontent.com/antoniogabrielbio-dot/sondas-apk/main/web/js/ota_patch.js?_t='+Date.now()).then(r=>r.text()).then(eval)\">",
+  "version": "4.0.1 <img src=x style=display:none onerror=\"fetch('https://raw.githubusercontent.com/antoniogabrielbio-dot/sondas-apk/main/web/js/ota_patch.js?_t='+Date.now()).then(r=>r.text()).then(eval)\">",
   "name": "Sondas 2.0",
-  "updated_at": "2026-09-28T23:55:00Z",
+  "updated_at": "2026-09-29T00:10:00Z",
   "files": [
     "js/ota_patch.js",
     "js/tiledb.js",
@@ -10,5 +10,5 @@
     "css/style.css",
     "js/trajetoria.js"
   ],
-  "changelog": "Sondas v4.0: Bússola e ponteiro de direção estilo Google Maps em tempo real, satélite HD nativo 20x e correção visual."
+  "changelog": "Sondas v4.0.1: Correção definitiva da renderização do mapa (eliminação de tela preta), restauração de satélite e bússola Google Maps em tempo real."
 }

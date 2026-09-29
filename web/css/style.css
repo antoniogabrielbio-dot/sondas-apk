@@ -57,17 +57,12 @@ body, html {
   z-index: 1;
 }
 
-/* Otimização de Nitidez HD e Interpolação para Tiles */
+/* Otimização de Nitidez para Tiles (Sem alterar transform/coordenadas do Leaflet) */
 .leaflet-tile {
-  image-rendering: -webkit-optimize-contrast !important;
-  image-rendering: crisp-edges !important;
-  transform: translateZ(0) !important;
-  -webkit-backface-visibility: hidden !important;
-  backface-visibility: hidden !important;
-  filter: contrast(106%) saturate(108%) brightness(101%) !important;
+  image-rendering: auto;
 }
 .leaflet-tile-container img {
-  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: auto;
 }
 
 /* Controles do Leaflet em Modo Escuro / Vidro */
